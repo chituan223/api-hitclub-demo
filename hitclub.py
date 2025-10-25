@@ -264,7 +264,10 @@ def index():
 # ===================== MAIN =====================
 if __name__ == "__main__":
     logger.info("🚀 Khởi động hệ thống AI Tài Xỉu V100 với Dự đoán tích hợp...")
-    threading.Thread(target=poll_api, args=("vgmn_100", lock_100, latest_result_100, history_100, False), daemon=True).start()
-    threading.Thread(target=poll_api, args=("vgmn_101", lock_101, latest_result_101, history_101, True), daemon=True).start()
+    # ⚙️ API 101 là TÀI XỈU thường (id=djtuancon)
+threading.Thread(target=poll_api, args=("vgmn_101", lock_100, latest_result_100, history_100, False), daemon=True).start()
+
+# ⚙️ API 100 là MD5 (id=daubuoi)
+threading.Thread(target=poll_api, args=("vgmn_100", lock_101, latest_result_101, history_101, True), daemon=True).start()
     port = int(os.environ.get("PORT", 8000))
     app.run(host=HOST, port=port)
