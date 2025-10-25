@@ -237,8 +237,22 @@ def get_tx_md5():
         hist_results = [h["Ket_qua"] for h in history_101 if h["Ket_qua"] in ("Tài","Xỉu")][::-1]
         if hist_results:
             pred = hybrid15(hist_results)
+
+            # === Bộ cân chỉnh cầu ===
+            last_5 = hist_results[:5]
+            if len(set(last_5)) == 1:
+                # Nếu 5 kết quả gần nhất giống nhau → cầu bệt
+                # => Ưu tiên đoán theo hướng hiện tại (theo cầu)
+                pred["prediction"] = hist_results[0]
+                pred["confidence"] = min(95, pred["confidence"] + 15)
+            elif hist_results[0] == hist_results[1]:
+                # Nếu 2 phiên gần nhất trùng nhau => khả năng cao vẫn tiếp tục
+                pred["prediction"] = hist_results[0]
+                pred["confidence"] = min(90, pred["confidence"] + 10)
+
             latest_result_101["Du_doan_tiep"] = pred["prediction"]
             latest_result_101["Do_tin_cay"] = pred["confidence"]
+
         return jsonify(latest_result_101)
 
 @app.route("/api/history")
