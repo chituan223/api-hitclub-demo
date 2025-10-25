@@ -49,7 +49,7 @@ def update_result(store, history, lock, result):
         if len(history) > MAX_HISTORY:
             history.pop()
 
-# ===================== 15 THUẬT TOÁN DETERMINISTIC =====================
+# ===================== 15 ALGORITHMS =====================
 def algo1_weightedRecent(history):
     if not history: return "Tài"
     t = sum((i + 1) / len(history) for i, v in enumerate(history) if v == "Tài")
@@ -171,7 +171,7 @@ def hybrid15(history):
     conf=int((max(scoreT,scoreX)/(scoreT+scoreX))*100)
     return {"prediction":pred,"confidence":conf,"votes":votes}
 
-# ===================== API POLLER =====================
+# ===================== POLLER =====================
 def poll_api(gid, lock, result_store, history, is_md5):
     global last_sid_100, last_sid_101, sid_for_tx
     url = f"https://jakpotgwab.geightdors.net/glms/v1/notify/taixiu?platform_id=g8&gid={gid}"
@@ -194,22 +194,17 @@ def poll_api(gid, lock, result_store, history, is_md5):
                             last_sid_101 = sid
                             total = d1 + d2 + d3
                             ket_qua = get_tai_xiu(d1, d2, d3)
-
-                            # cập nhật lịch sử
                             result = {
                                 "Phien": sid, "Xuc_xac_1": d1, "Xuc_xac_2": d2, "Xuc_xac_3": d3,
                                 "Tong": total, "Ket_qua": ket_qua, "id": "daubuoi"
                             }
                             update_result(result_store, history, lock, result)
-
-                            # Tính dự đoán kế tiếp
+                            # Dự đoán kế tiếp
                             hist_results = [h["Ket_qua"] for h in history if h["Ket_qua"] in ("Tài","Xỉu")][::-1]
                             pred = hybrid15(hist_results)
                             result_store["Du_doan_tiep"] = pred["prediction"]
                             result_store["Do_tin_cay"] = pred["confidence"]
-
                             logger.info(f"[MD5] Phiên {sid} - Tổng: {total}, KQ: {ket_qua} | Dự đoán kế: {pred['prediction']} ({pred['confidence']}%)")
-
                     elif not is_md5 and cmd == 1003:
                         d1, d2, d3 = game.get("d1"), game.get("d2"), game.get("d3")
                         sid = sid_for_tx
@@ -238,7 +233,13 @@ def get_tx():
 
 @app.route("/api/taixiumd5")
 def get_tx_md5():
-    with lock_101: return jsonify(latest_result_101)
+    with lock_101:
+        hist_results = [h["Ket_qua"] for h in history_101 if h["Ket_qua"] in ("Tài","Xỉu")][::-1]
+        if hist_results:
+            pred = hybrid15(hist_results)
+            latest_result_101["Du_doan_tiep"] = pred["prediction"]
+            latest_result_101["Do_tin_cay"] = pred["confidence"]
+        return jsonify(latest_result_101)
 
 @app.route("/api/history")
 def get_hist():
@@ -264,10 +265,7 @@ def index():
 # ===================== MAIN =====================
 if __name__ == "__main__":
     logger.info("🚀 Khởi động hệ thống AI Tài Xỉu V100 với Dự đoán tích hợp...")
-    # ⚙️ API 101 là TÀI XỈU thường (id=djtuancon)
-threading.Thread(target=poll_api, args=("vgmn_101", lock_100, latest_result_100, history_100, False), daemon=True).start()
-
-# ⚙️ API 100 là MD5 (id=daubuoi)
-threading.Thread(target=poll_api, args=("vgmn_100", lock_101, latest_result_101, history_101, True), daemon=True).start()
+    threading.Thread(target=poll_api, args=("vgmn_101", lock_100, latest_result_100, history_100, False), daemon=True).start()
+    threading.Thread(target=poll_api, args=("vgmn_100", lock_101, latest_result_101, history_101, True), daemon=True).start()
     port = int(os.environ.get("PORT", 8000))
     app.run(host=HOST, port=port)
