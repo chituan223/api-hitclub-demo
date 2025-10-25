@@ -25,7 +25,7 @@ latest_result_100 = {
 
 latest_result_101 = {
     "Phien": 0, "Xuc_xac_1": 0, "Xuc_xac_2": 0, "Xuc_xac_3": 0,
-    "Tong": 0, "Ket_qua": "Chưa có", "id": "daubuoi",
+    "Tong": 0, "Ket_qua": "Chưa có", "id": "djtuancon",
     "Du_doan_tiep": "Đang phân tích...", "Do_tin_cay": 0
 }
 
@@ -197,7 +197,7 @@ def poll_api(gid, lock, result_store, history, is_md5):
 
                             result = {
                                 "Phien": sid, "Xuc_xac_1": d1, "Xuc_xac_2": d2, "Xuc_xac_3": d3,
-                                "Tong": total, "Ket_qua": ket_qua, "id": "daubuoi"
+                                "Tong": total, "Ket_qua": ket_qua, "id": "djtuancon"
                             }
                             update_result(result_store, history, lock, result)
 
