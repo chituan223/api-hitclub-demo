@@ -188,16 +188,6 @@ def get_tx():
         return jsonify(latest_result_100)
 
 @app.route("/api/taixiumd5")
-def get_tx_md5():
-    with lock_101:
-        return jsonify(latest_result_101)
-
-@app.route("/api/history")
-def get_hist():
-    with lock_100, lock_101:
-        return jsonify({"taixiu": history_100, "taixiumd5": history_101})
-
-@app.route("/api/predict")
 def predict_next():
     with lock_101:
         # Lấy history mới → cũ
@@ -206,20 +196,27 @@ def predict_next():
         res = algo_hybrid(history[::-1])
         latest = history_101[0] if history_101 else latest_result_101
         return jsonify({
-            "Do_tin_cay": res["confidence"],
-            "Du_doan_tiep": res["prediction"],
-            "Ket_qua": latest["Ket_qua"],
-            "Phien": latest["Phien"],
-            "Tong": latest["Tong"],
-            "Xuc_xac_1": latest["Xuc_xac_1"],
-            "Xuc_xac_2": latest["Xuc_xac_2"],
-            "Xuc_xac_3": latest["Xuc_xac_3"],
+             "Phien": latest["Phien"],
+              "Xuc_xac_1": latest["Xuc_xac_1"],
+              "Xuc_xac_2": latest["Xuc_xac_2"],
+              "Xuc_xac_3": latest["Xuc_xac_3"],
+               "Tong": latest["Tong"],
+               "Du_doan_tiep": res["prediction"],
+               "Do_tin_cay": res["confidence"],
             "id": latest["id"]
         })
+            
+
+@app.route("/api/history")
+def get_hist():
+    with lock_100, lock_101:
+        return jsonify({"taixiu": history_100, "taixiumd5": history_101})
+
+
 
 @app.route("/")
 def index():
-    return "✅ Tài Xỉu API đang chạy | /api/taixiu /api/taixiumd5 /api/predict"
+    return "✅ Tài Xỉu API đang chạy | /api/taixiu /api/taixiumd5"
 
 # ===================== MAIN =====================
 if __name__ == "__main__":
