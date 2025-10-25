@@ -49,7 +49,7 @@ def update_result(store, history, lock, result):
         if len(history) > MAX_HISTORY:
             history.pop()
 
-# ===================== 15 ALGORITHMS =====================
+# ===================== 15 THUẬT TOÁN DETERMINISTIC =====================
 def algo1_weightedRecent(history):
     if not history: return "Tài"
     t = sum((i + 1) / len(history) for i, v in enumerate(history) if v == "Tài")
@@ -171,7 +171,7 @@ def hybrid15(history):
     conf=int((max(scoreT,scoreX)/(scoreT+scoreX))*100)
     return {"prediction":pred,"confidence":conf,"votes":votes}
 
-# ===================== POLLER =====================
+# ===================== API POLLER =====================
 def poll_api(gid, lock, result_store, history, is_md5):
     global last_sid_100, last_sid_101, sid_for_tx
     url = f"https://jakpotgwab.geightdors.net/glms/v1/notify/taixiu?platform_id=g8&gid={gid}"
@@ -194,17 +194,31 @@ def poll_api(gid, lock, result_store, history, is_md5):
                             last_sid_101 = sid
                             total = d1 + d2 + d3
                             ket_qua = get_tai_xiu(d1, d2, d3)
+
                             result = {
                                 "Phien": sid, "Xuc_xac_1": d1, "Xuc_xac_2": d2, "Xuc_xac_3": d3,
                                 "Tong": total, "Ket_qua": ket_qua, "id": "daubuoi"
                             }
                             update_result(result_store, history, lock, result)
-                            # Dự đoán kế tiếp
-                            hist_results = [h["Ket_qua"] for h in history if h["Ket_qua"] in ("Tài","Xỉu")][::-1]
-                            pred = hybrid15(hist_results)
+
+                            # ================= DỰ ĐOÁN KẾ TIẾP KHÔNG NGƯỢC =================
+                            hist_results = [h["Ket_qua"] for h in history[1:] if h["Ket_qua"] in ("Tài","Xỉu")][::-1]
+                            pred = hybrid15(hist_results) if hist_results else {"prediction":"Tài","confidence":70,"votes":[]}
+
+                            # Nhận diện cầu bệt
+                            last_5 = hist_results[:5]
+                            if len(last_5)==5 and len(set(last_5))==1:
+                                pred["prediction"] = last_5[0]
+                                pred["confidence"] = min(95, pred["confidence"] + 15)
+                            elif len(hist_results)>=2 and hist_results[0]==hist_results[1]:
+                                pred["prediction"] = hist_results[0]
+                                pred["confidence"] = min(90, pred["confidence"] + 10)
+
                             result_store["Du_doan_tiep"] = pred["prediction"]
                             result_store["Do_tin_cay"] = pred["confidence"]
+
                             logger.info(f"[MD5] Phiên {sid} - Tổng: {total}, KQ: {ket_qua} | Dự đoán kế: {pred['prediction']} ({pred['confidence']}%)")
+
                     elif not is_md5 and cmd == 1003:
                         d1, d2, d3 = game.get("d1"), game.get("d2"), game.get("d3")
                         sid = sid_for_tx
@@ -229,29 +243,27 @@ app = Flask(__name__)
 
 @app.route("/api/taixiu")
 def get_tx():
-    with lock_100: return jsonify(latest_result_100)
+    with lock_100:
+        return jsonify(latest_result_100)
 
 @app.route("/api/taixiumd5")
 def get_tx_md5():
     with lock_101:
-        hist_results = [h["Ket_qua"] for h in history_101 if h["Ket_qua"] in ("Tài","Xỉu")][::-1]
-        if hist_results:
-            pred = hybrid15(hist_results)
+        # Dự đoán dựa trên lịch sử trừ phiên mới nhất
+        hist_results = [h["Ket_qua"] for h in history_101[1:] if h["Ket_qua"] in ("Tài","Xỉu")][::-1]
+        pred = hybrid15(hist_results) if hist_results else {"prediction":"Tài","confidence":70,"votes":[]}
 
-            # === Bộ cân chỉnh cầu ===
-            last_5 = hist_results[:5]
-            if len(set(last_5)) == 1:
-                # Nếu 5 kết quả gần nhất giống nhau → cầu bệt
-                # => Ưu tiên đoán theo hướng hiện tại (theo cầu)
-                pred["prediction"] = hist_results[0]
-                pred["confidence"] = min(95, pred["confidence"] + 15)
-            elif hist_results[0] == hist_results[1]:
-                # Nếu 2 phiên gần nhất trùng nhau => khả năng cao vẫn tiếp tục
-                pred["prediction"] = hist_results[0]
-                pred["confidence"] = min(90, pred["confidence"] + 10)
+        # Nhận diện cầu bệt
+        last_5 = hist_results[:5]
+        if len(last_5)==5 and len(set(last_5))==1:
+            pred["prediction"] = last_5[0]
+            pred["confidence"] = min(95, pred["confidence"] + 15)
+        elif len(hist_results)>=2 and hist_results[0]==hist_results[1]:
+            pred["prediction"] = hist_results[0]
+            pred["confidence"] = min(90, pred["confidence"] + 10)
 
-            latest_result_101["Du_doan_tiep"] = pred["prediction"]
-            latest_result_101["Do_tin_cay"] = pred["confidence"]
+        latest_result_101["Du_doan_tiep"] = pred["prediction"]
+        latest_result_101["Do_tin_cay"] = pred["confidence"]
 
         return jsonify(latest_result_101)
 
@@ -263,13 +275,22 @@ def get_hist():
 @app.route("/api/predict")
 def predict_next():
     with lock_101:
-        history = [h["Ket_qua"] for h in history_101 if h["Ket_qua"] in ("Tài","Xỉu")][::-1]
-        res = hybrid15(history)
+        hist_results = [h["Ket_qua"] for h in history_101 if h["Ket_qua"] in ("Tài","Xỉu")][::-1]
+        res = hybrid15(hist_results) if hist_results else {"prediction":"Tài","confidence":70,"votes":[]}
+
+        last_5 = hist_results[:5]
+        if len(last_5)==5 and len(set(last_5))==1:
+            res["prediction"] = last_5[0]
+            res["confidence"] = min(95, res["confidence"] + 15)
+        elif len(hist_results)>=2 and hist_results[0]==hist_results[1]:
+            res["prediction"] = hist_results[0]
+            res["confidence"] = min(90, res["confidence"] + 10)
+
         return jsonify({
             "next_prediction": res["prediction"],
             "confidence": res["confidence"],
             "votes": res["votes"],
-            "history_len": len(history)
+            "history_len": len(hist_results)
         })
 
 @app.route("/")
