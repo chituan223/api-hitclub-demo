@@ -187,10 +187,32 @@ def get_tx():
     with lock_100:
         return jsonify(latest_result_100)
 
-@app.route("/api/taixiumd5")
-def get_tx_md5():
+@app.route("/api/predict/md5")
+def predict_md5():
     with lock_101:
-        return jsonify(latest_result_101)
+        # Lấy lịch sử phiên từ cũ → mới
+        history = [h["Ket_qua"] for h in history_101 if h["Ket_qua"] in ("Tài","Xỉu")]
+        if not history:
+            return jsonify({
+                "Phien": None, "Xuc_xac_1": 0, "Xuc_xac_2": 0, "Xuc_xac_3": 0,
+                "Tong": 0, "Ket_qua": None, "id": "daubuoi",
+                "Du_doan_tiep": "Tài", "Do_tin_cay": 70
+            })
+
+        res = algo_hybrid(history)
+        latest = history_101[-1]  # Phiên cuối
+        response = {
+            "Phien": latest["Phien"],
+            "Xuc_xac_1": latest["Xuc_xac_1"],
+            "Xuc_xac_2": latest["Xuc_xac_2"],
+            "Xuc_xac_3": latest["Xuc_xac_3"],
+            "Tong": latest["Tong"],
+            "Ket_qua": latest["Ket_qua"],
+            "id": latest["id"],
+            "Du_doan_tiep": res["prediction"],
+            "Do_tin_cay": res["confidence"]
+        }
+        return jsonify(response)
 
 @app.route("/api/history")
 def get_hist():
