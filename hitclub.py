@@ -48,7 +48,8 @@ def update_result(store, history, lock, result):
         if len(history) > MAX_HISTORY:
             history.pop()
 
-# ===================== 10 THUẬT TOÁN MỚI =====================
+# ===================== 15 THUẬT TOÁN TÀI/XỈU =================
+
 def algo1_weightedRecent(history):
     if not history: return "Tài"
     t = sum((i+1)/len(history) for i,v in enumerate(history) if v=="Tài")
@@ -57,25 +58,25 @@ def algo1_weightedRecent(history):
 
 def algo2_expDecay(history, decay=0.6):
     if not history: return "Tài"
-    t = x = w = 0; w=1
+    t = x = w = 0; w = 1
     for v in reversed(history):
-        if v=="Tài": t+=w
-        else: x+=w
-        w*=decay
-    return "Tài" if t>x else "Xỉu"
+        if v == "Tài": t += w
+        else: x += w
+        w *= decay
+    return "Tài" if t > x else "Xỉu"
 
 def algo3_longChainReverse(history, k=3):
     if not history: return "Tài"
-    last=history[-1]; chain=1
+    last = history[-1]; chain = 1
     for v in reversed(history[:-1]):
-        if v==last: chain+=1
+        if v == last: chain += 1
         else: break
-    return "Xỉu" if chain>=k and last=="Tài" else ("Tài" if chain>=k else last)
+    return "Xỉu" if chain >= k and last=="Tài" else ("Tài" if chain>=k else last)
 
 def algo4_windowMajority(history, window=5):
     win = history[-window:] if len(history)>=window else history
     if not win: return "Tài"
-    return "Tài" if win.count("Tài")>=len(win)/2 else "Xỉu"
+    return "Tài" if win.count("Tài") >= len(win)/2 else "Xỉu"
 
 def algo5_alternation(history):
     if len(history)<4: return "Tài"
@@ -85,27 +86,27 @@ def algo5_alternation(history):
 def algo6_patternRepeat(history):
     L = len(history)
     if L < 4: return "Tài"
-    for length in range(2, min(6,L//2)+1):
+    for length in range(2, min(6, L//2)+1):
         a = "".join(history[-length:])
         b = "".join(history[-2*length:-length])
-        if a==b: return history[-length]
+        if a == b: return history[-length]
     return algo4_windowMajority(history,4)
 
 def algo7_mirror(history):
     if len(history)<8: return history[-1] if history else "Tài"
-    return "Xỉu" if history[-4:]==history[-8:-4] and history[-1]=="Tài" else history[-1]
+    return "Xỉu" if history[-4:] == history[-8:-4] and history[-1]=="Tài" else history[-1]
 
 def algo8_entropy(history):
     if not history: return "Tài"
-    t=history.count("Tài")
-    x=len(history)-t
-    diff=abs(t-x)
-    if diff<=len(history)//5: return "Xỉu" if history[-1]=="Tài" else "Tài"
-    return "Xỉu" if t>x else "Tài"
+    t = history.count("Tài")
+    x = len(history)-t
+    diff = abs(t-x)
+    if diff <= len(history)//5: return "Xỉu" if history[-1]=="Tài" else "Tài"
+    return "Xỉu" if t > x else "Tài"
 
 def algo9_momentum(history):
     if len(history)<2: return "Tài"
-    score=sum(1 if history[i]==history[i-1] else -1 for i in range(1,len(history)))
+    score = sum(1 if history[i]==history[i-1] else -1 for i in range(1,len(history)))
     return history[-1] if score>0 else ("Xỉu" if history[-1]=="Tài" else "Tài")
 
 def algo10_freqRatio(history):
@@ -115,10 +116,54 @@ def algo10_freqRatio(history):
     if ratio<0.38: return "Tài"
     return history[-1]
 
-algos = [algo1_weightedRecent, algo2_expDecay, algo3_longChainReverse, algo4_windowMajority,
-         algo5_alternation, algo6_patternRepeat, algo7_mirror, algo8_entropy, algo9_momentum, algo10_freqRatio]
+def algo11_parityIndex(history):
+    if not history: return "Tài"
+    score = 0
+    for i,v in enumerate(history):
+        if (i%2==0 and v=="Tài") or (i%2==1 and v=="Xỉu"): score+=1
+        else: score-=1
+    nextEven = len(history)%2==0
+    return "Tài" if (score>=0 and nextEven) or (score<0 and not nextEven) else "Xỉu"
 
-def hybrid10(history):
+def algo12_autocorr(history):
+    if len(history)<4: return "Tài"
+    sT=sX=0; L=len(history)
+    for lag in range(1,min(5,L-1)+1):
+        if history[-lag:]==history[-2*lag:-lag]:
+            if history[-lag]=="Tài": sT+=1
+            else: sX+=1
+    if sT>sX: return "Tài"
+    if sX>sT: return "Xỉu"
+    return history[-1]
+
+def algo13_subwindowMajority(history):
+    if len(history)<3: return "Tài"
+    votes=[]
+    for w in range(3,min(6,len(history))+1):
+        win=history[-w:]
+        votes.append("Tài" if win.count("Tài")>=len(win)/2 else "Xỉu")
+    return "Tài" if votes.count("Tài")>=len(votes)/2 else "Xỉu"
+
+def algo14_runParity(history):
+    if not history: return "Tài"
+    cur=history[0];length=maxRun=1
+    for v in history[1:]:
+        if v==cur: length+=1
+        else: maxRun=max(maxRun,length);cur=v;length=1
+    maxRun=max(maxRun,length)
+    return "Xỉu" if maxRun>=4 and history[-1]=="Tài" else history[-1]
+
+def algo15_volatility(history):
+    if len(history)<4: return "Tài"
+    flips=sum(1 for i in range(1,len(history)) if history[i]!=history[i-1])
+    return "Xỉu" if flips/len(history)>0.55 and history[-1]=="Tài" else history[-1]
+
+algos = [algo1_weightedRecent, algo2_expDecay, algo3_longChainReverse, algo4_windowMajority,
+         algo5_alternation, algo6_patternRepeat, algo7_mirror, algo8_entropy, algo9_momentum,
+         algo10_freqRatio, algo11_parityIndex, algo12_autocorr, algo13_subwindowMajority,
+         algo14_runParity, algo15_volatility]
+
+def hybrid15(history):
     if not history: return {"prediction":"Tài","confidence":70,"votes":[]}
     scoreT=scoreX=0
     votes=[]
@@ -154,7 +199,7 @@ def poll_api(lock, result_store, history):
                                         "Tong":total,"Ket_qua":ket_qua,"id":"daubuoi"}
                                 update_result(result_store, history, lock, result)
                                 hist_results=[h["Ket_qua"] for h in history if h["Ket_qua"] in ("Tài","Xỉu")][::-1]
-                                pred=hybrid10(hist_results)
+                                pred=hybrid15(hist_results)
                                 result_store["Du_doan_tiep"]=pred["prediction"]
                                 result_store["Do_tin_cay"]=pred["confidence"]
                                 logger.info(f"Phiên {sid} - Tổng: {total}, KQ: {ket_qua} | Dự đoán: {pred['prediction']} ({pred['confidence']}%)")
@@ -180,7 +225,7 @@ def get_hist():
 def predict_next():
     with lock_101:
         history=[h["Ket_qua"] for h in history_101 if h["Ket_qua"] in ("Tài","Xỉu")][::-1]
-        res=hybrid10(history)
+        res=hybrid15(history)
         return jsonify({"next_prediction":res["prediction"],"confidence":res["confidence"],"votes":res["votes"],"history_len":len(history)})
 
 @app.route("/")
