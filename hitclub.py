@@ -36,12 +36,12 @@ last_sid_100 = None
 last_sid_101 = None
 sid_for_tx = None
 
-# ======================================
-# 🧠 HÀM CƠ BẢN
-# ======================================
+
+# ===================== CORE FUNCTION =====================
 def get_tai_xiu(d1, d2, d3):
     total = d1 + d2 + d3
     return "Xỉu" if total <= 10 else "Tài"
+
 
 def update_result(store, history, lock, result):
     with lock:
@@ -51,141 +51,138 @@ def update_result(store, history, lock, result):
         if len(history) > MAX_HISTORY:
             history.pop()
 
-# ======================================
-# ⚙️ 15 THUẬT TOÁN MỚI
-# ======================================
-def algo_dynamic_weighted_v3(history):
-    if len(history) < 10: return "Tài"
-    recent = history[-12:]
-    count_tai = recent.count("Tài"); count_xiu = recent.count("Xỉu")
-    if all(h == "Tài" for h in recent[-4:]): return "Tài"
-    if all(h == "Xỉu" for h in recent[-4:]): return "Xỉu"
-    if all(recent[i] != recent[i-1] for i in range(1, 6)):
-        return "Tài" if history[-1] == "Xỉu" else "Xỉu"
-    last5 = history[-5:]; tai5 = last5.count("Tài"); xiu5 = last5.count("Xỉu")
-    if tai5 >= 4: return "Tài"
-    if xiu5 >= 4: return "Xỉu"
-    weight_tai = (count_tai/12)*0.6 + (tai5/5)*0.4
-    weight_xiu = (count_xiu/12)*0.6 + (xiu5/5)*0.4
-    if history[-1]=="Tài" and weight_tai>0.7: return "Xỉu"
-    if history[-1]=="Xỉu" and weight_xiu>0.7: return "Tài"
-    return "Tài" if weight_tai>=weight_xiu else "Xỉu"
 
-def algo_bet_chain(history):
-    if len(history) < 5: return "Tài"
-    if all(h=="Tài" for h in history[-4:]): return "Tài"
-    if all(h=="Xỉu" for h in history[-4:]): return "Xỉu"
-    if history[-1]=="Tài" and history[-2]=="Tài": return "Tài"
-    if history[-1]=="Xỉu" and history[-2]=="Xỉu": return "Xỉu"
-    return "Tài" if history[-1]=="Xỉu" else "Xỉu"
+# ===================== 15 THUẬT TOÁN DETERMINISTIC =====================
+def algo1_weightedRecent(history):
+    if not history: return "Tài"
+    t = sum((i + 1) / len(history) for i, v in enumerate(history) if v == "Tài")
+    x = sum((i + 1) / len(history) for i, v in enumerate(history) if v == "Xỉu")
+    return "Tài" if t >= x else "Xỉu"
 
-def algo_alternate(history):
-    if len(history) < 6: return "Tài"
-    flips=sum(1 for i in range(1,6) if history[-i]!=history[-i-1])
-    if flips>=4: return "Tài" if history[-1]=="Xỉu" else "Xỉu"
-    return history[-1]
 
-def algo_balance_ratio(history):
-    if len(history)<10: return "Tài"
-    last10 = history[-10:]
-    diff = last10.count("Tài") - last10.count("Xỉu")
-    if abs(diff) >= 4:
-        return "Xỉu" if diff > 0 else "Tài"
-    return history[-1]
+def algo2_expDecay(history, decay=0.6):
+    if not history: return "Tài"
+    t = x = 0; w = 1
+    for v in reversed(history):
+        if v == "Tài": t += w
+        else: x += w
+        w *= decay
+    return "Tài" if t > x else "Xỉu"
 
-def algo_smart_reverse(history):
-    if len(history)<6: return "Tài"
-    tail=history[-6:]
-    if tail[-1]==tail[-2]==tail[-3]: return tail[-1]
-    if tail[-1]!=tail[-2] and tail[-2]!=tail[-3]:
-        return "Tài" if tail[-1]=="Xỉu" else "Xỉu"
-    return "Tài" if tail.count("Tài")>=3 else "Xỉu"
 
-def algo_short_weighted(history):
-    if len(history)<8: return "Tài"
-    tail=history[-8:]
-    w_tai=sum(1/(i+1) for i,h in enumerate(reversed(tail)) if h=="Tài")
-    w_xiu=sum(1/(i+1) for i,h in enumerate(reversed(tail)) if h=="Xỉu")
-    return "Tài" if w_tai>w_xiu else "Xỉu"
-
-def algo_trend_divergence(history):
-    if len(history)<7: return "Tài"
-    trend=[1 if h=="Tài" else -1 for h in history[-7:]]
-    score=sum(trend[-4:])
-    if score>=3: return "Tài"
-    if score<=-3: return "Xỉu"
-    return "Tài" if score>=0 else "Xỉu"
-
-def algo_flip_counter(history):
-    if len(history)<6: return "Tài"
-    flips=sum(1 for i in range(1,6) if history[-i]!=history[-i-1])
-    return "Tài" if flips%2==0 else "Xỉu"
-
-def algo_antistreak(history):
-    if len(history)<5: return "Tài"
-    if all(h==history[-1] for h in history[-4:]): return history[-1]
-    if history[-1]!=history[-2]: return "Tài" if history[-1]=="Xỉu" else "Xỉu"
-    return history[-1]
-
-def algo_rolling_prob(history):
-    if len(history)<20: return "Tài"
-    last20 = history[-20:]
-    tai_ratio = last20.count("Tài")/20
-    if 0.45 <= tai_ratio <= 0.55:
-        return "Tài" if history[-1]=="Xỉu" else "Xỉu"
-    return "Tài" if tai_ratio>0.5 else "Xỉu"
-
-def algo_double_swing(history):
-    if len(history)<6: return "Tài"
-    last6=history[-6:]
-    pattern="".join("T" if h=="Tài" else "X" for h in last6)
-    if pattern.endswith("TTXX") or pattern.endswith("XXTT"):
-        return "Tài" if pattern[-1]=="X" else "Xỉu"
-    return "Tài" if last6.count("Tài")>=3 else "Xỉu"
-
-def algo_backward_bet(history):
-    if len(history)<7: return "Tài"
-    chain=0
-    for i in range(1,6):
-        if history[-i]==history[-i-1]: chain+=1
+def algo3_longChainReverse(history, k=3):
+    if not history: return "Tài"
+    last = history[-1]
+    chain = 1
+    for v in reversed(history[:-1]):
+        if v == last: chain += 1
         else: break
-    if chain>=3: return history[-1]
-    return "Tài" if history[-1]=="Xỉu" else "Xỉu"
+    return "Xỉu" if chain >= k and last == "Tài" else ("Tài" if chain >= k else last)
 
-def algo_triple_layer_trend(history):
-    if len(history)<15: return "Tài"
-    s1=history[-5:]; s2=history[-10:-5]; s3=history[-15:-10]
-    score=sum(s.count("Tài")>2 for s in [s1,s2,s3])
-    return "Tài" if score>=2 else "Xỉu"
 
-def algo_double_reverse(history):
-    if len(history)<8: return "Tài"
-    last8=history[-8:]
-    flips=sum(1 for i in range(1,8) if last8[i]!=last8[i-1])
-    if flips>=6: return "Tài" if history[-1]=="Xỉu" else "Xỉu"
+def algo4_windowMajority(history, window=5):
+    win = history[-window:]
+    if not win: return "Tài"
+    return "Tài" if win.count("Tài") >= len(win)/2 else "Xỉu"
+
+
+def algo5_alternation(history):
+    if len(history) < 4: return "Tài"
+    flips = sum(1 for i in range(1,4) if history[-i]!=history[-i-1])
+    return "Xỉu" if flips>=3 and history[-1]=="Tài" else ("Tài" if flips>=3 else history[-1])
+
+
+def algo6_patternRepeat(history):
+    L = len(history)
+    if L < 4: return "Tài"
+    for length in range(2, min(6, L//2)+1):
+        a = "".join(history[-length:])
+        b = "".join(history[-2*length:-length])
+        if a == b: return history[-length]
+    return algo4_windowMajority(history,4)
+
+
+def algo7_mirror(history):
+    if len(history) < 8: return history[-1] if history else "Tài"
+    return "Xỉu" if history[-4:]==history[-8:-4] and history[-1]=="Tài" else history[-1]
+
+
+def algo8_entropy(history):
+    if not history: return "Tài"
+    t = history.count("Tài"); x = len(history)-t; diff = abs(t-x)
+    if diff <= len(history)//5: return "Xỉu" if history[-1]=="Tài" else "Tài"
+    return "Xỉu" if t>x else "Tài"
+
+
+def algo9_volatility(history):
+    if len(history)<4: return "Tài"
+    flips = sum(1 for i in range(1,len(history)) if history[i]!=history[i-1])
+    return "Xỉu" if flips/len(history)>0.55 and history[-1]=="Tài" else history[-1]
+
+
+def algo10_momentum(history):
+    if len(history)<2: return "Tài"
+    score = sum(1 if history[i]==history[i-1] else -1 for i in range(1,len(history)))
+    return history[-1] if score>0 else ("Xỉu" if history[-1]=="Tài" else "Tài")
+
+
+def algo11_parityIndex(history):
+    if not history: return "Tài"
+    score = sum(1 if (i%2==0 and v=="Tài") or (i%2==1 and v=="Xỉu") else -1 for i,v in enumerate(history))
+    nextEven = len(history)%2==0
+    return "Tài" if score>=0 and nextEven or score<0 and not nextEven else "Xỉu"
+
+
+def algo12_autocorr(history):
+    if len(history)<4: return "Tài"
+    sT=sX=0; L=len(history)
+    for lag in range(1,min(5,L-1)+1):
+        if history[-lag:]==history[-2*lag:-lag]:
+            if history[-lag]=="Tài": sT+=1
+            else: sX+=1
+    if sT>sX: return "Tài"
+    if sX>sT: return "Xỉu"
     return history[-1]
 
-def algo_hybrid_weighted(history):
-    if len(history)<10: return "Tài"
-    last10=history[-10:]
-    weight=sum((1 if h=="Tài" else -1)*(i+1) for i,h in enumerate(reversed(last10)))
-    if weight>10: return "Tài"
-    if weight<-10: return "Xỉu"
-    return "Tài" if weight>=0 else "Xỉu"
 
-# Gộp 15 thuật toán lại
+def algo13_subwindowMajority(history):
+    if len(history)<3: return "Tài"
+    votes=[]
+    for w in range(3,min(6,len(history))+1):
+        win=history[-w:]
+        votes.append("Tài" if win.count("Tài")>=len(win)/2 else "Xỉu")
+    return "Tài" if votes.count("Tài")>=len(votes)/2 else "Xỉu"
+
+
+def algo14_runParity(history):
+    if not history: return "Tài"
+    cur=history[0];length=maxRun=1
+    for v in history[1:]:
+        if v==cur: length+=1
+        else: maxRun=max(maxRun,length);cur=v;length=1
+    maxRun=max(maxRun,length)
+    return "Xỉu" if maxRun>=4 and history[-1]=="Tài" else history[-1]
+
+
+def algo15_freqRatio(history):
+    if not history: return "Tài"
+    ratio=history.count("Tài")/len(history)
+    if ratio>0.62: return "Xỉu"
+    if ratio<0.38: return "Tài"
+    return history[-1]
+
+
 algos = [
-    algo_dynamic_weighted_v3, algo_bet_chain, algo_alternate, algo_balance_ratio,
-    algo_smart_reverse, algo_short_weighted, algo_trend_divergence, algo_flip_counter,
-    algo_antistreak, algo_rolling_prob, algo_double_swing, algo_backward_bet,
-    algo_triple_layer_trend, algo_double_reverse, algo_hybrid_weighted
+    algo1_weightedRecent, algo2_expDecay, algo3_longChainReverse, algo4_windowMajority,
+    algo5_alternation, algo6_patternRepeat, algo7_mirror, algo8_entropy, algo9_volatility,
+    algo10_momentum, algo11_parityIndex, algo12_autocorr, algo13_subwindowMajority,
+    algo14_runParity, algo15_freqRatio
 ]
 
-# ======================================
-# 🧩 Tổng hợp dự đoán (Hybrid)
-# ======================================
+
 def hybrid15(history):
-    if not history: return {"prediction": "Tài", "confidence": 70, "votes": []}
+    if not history:
+        return {"prediction": "Tài", "confidence": 70, "votes": []}
     scoreT = scoreX = 0
     votes = []
     for fn in algos:
@@ -197,22 +194,23 @@ def hybrid15(history):
     conf = int((max(scoreT, scoreX) / (scoreT + scoreX)) * 100)
     return {"prediction": pred, "confidence": conf, "votes": votes}
 
-# ======================================
-# 🔗 API POLLER
-# ======================================
+
+# ===================== API POLLER =====================
 def poll_api(gid, lock, result_store, history, is_md5):
     global last_sid_100, last_sid_101, sid_for_tx
     url = f"https://jakpotgwab.geightdors.net/glms/v1/notify/taixiu?platform_id=g8&gid={gid}"
     while True:
         try:
-            req = Request(url, headers={'User-Agent': 'Python-Proxy/1.0'})
+            req = Request(url, headers={'User-Agent': 'Python-Agent'})
             with urlopen(req, timeout=10) as resp:
                 data = json.loads(resp.read().decode('utf-8'))
+
             if data.get('status') == 'OK' and isinstance(data.get('data'), list):
                 for game in data['data']:
                     cmd = game.get("cmd")
                     if not is_md5 and cmd == 1008:
                         sid_for_tx = game.get("sid")
+
                 for game in data['data']:
                     cmd = game.get("cmd")
                     if is_md5 and cmd == 2006:
@@ -229,15 +227,15 @@ def poll_api(gid, lock, result_store, history, is_md5):
                             }
                             update_result(result_store, history, lock, result)
 
-                            hist_results = [h["Ket_qua"] for h in history if h["Ket_qua"] in ("Tài","Xỉu")][::-1]
+                            hist_results = [h["Ket_qua"] for h in history if h["Ket_qua"] in ("Tài", "Xỉu")][::-1]
                             pred = hybrid15(hist_results)
                             result_store["Du_doan_tiep"] = pred["prediction"]
                             result_store["Do_tin_cay"] = pred["confidence"]
 
-                            logger.info(f"[MD5] Phiên {sid} - Tổng {total}, {ket_qua} → Dự đoán kế: {pred['prediction']} ({pred['confidence']}%)")
+                            logger.info(f"[MD5] Phiên {sid} - Tổng: {total}, KQ: {ket_qua} | Dự đoán kế: {pred['prediction']} ({pred['confidence']}%)")
 
                     elif not is_md5 and cmd == 1003:
-                        d1, d2, d3 = game.get("d1"), game.get("d3"), game.get("d3")
+                        d1, d2, d3 = game.get("d1"), game.get("d2"), game.get("d3")
                         sid = sid_for_tx
                         if sid and sid != last_sid_100 and None not in (d1, d2, d3):
                             last_sid_100 = sid
@@ -250,14 +248,14 @@ def poll_api(gid, lock, result_store, history, is_md5):
                             update_result(result_store, history, lock, result)
                             logger.info(f"[TX] Phiên {sid} - Tổng: {total}, KQ: {ket_qua}")
                             sid_for_tx = None
+
         except Exception as e:
-            logger.error(f"Lỗi lấy dữ liệu API {gid}: {e}")
+            logger.error(f"Lỗi khi lấy dữ liệu API {gid}: {e}")
             time.sleep(RETRY_DELAY)
         time.sleep(POLL_INTERVAL)
 
-# ======================================
-# 🌐 FLASK API
-# ======================================
+
+# ===================== FLASK API =====================
 app = Flask(__name__)
 
 @app.route("/api/taixiu")
@@ -278,7 +276,7 @@ def get_hist():
 @app.route("/api/predict")
 def predict_next():
     with lock_101:
-        history = [h["Ket_qua"] for h in history_101 if h["Ket_qua"] in ("Tài","Xỉu")][::-1]
+        history = [h["Ket_qua"] for h in history_101 if h["Ket_qua"] in ("Tài", "Xỉu")][::-1]
         res = hybrid15(history)
         return jsonify({
             "next_prediction": res["prediction"],
@@ -289,13 +287,12 @@ def predict_next():
 
 @app.route("/")
 def index():
-    return "✅ API Tài Xỉu AI V101 (tuananhdz) đang chạy | /api/taixiu /api/taixiumd5 /api/predict"
+    return "✅ API Tài Xỉu AI V100 đang chạy | /api/taixiu /api/taixiumd5 /api/predict"
 
-# ======================================
-# 🚀 MAIN
-# ======================================
+
+# ===================== MAIN =====================
 if __name__ == "__main__":
-    logger.info("🚀 Khởi động hệ thống AI Tài Xỉu V101 với 15 thuật toán mới (tuananhdz)...")
+    logger.info("🚀 Khởi động hệ thống AI Tài Xỉu V100 với dự đoán thông minh...")
     threading.Thread(target=poll_api, args=("vgmn_101", lock_100, latest_result_100, history_100, False), daemon=True).start()
     threading.Thread(target=poll_api, args=("vgmn_100", lock_101, latest_result_101, history_101, True), daemon=True).start()
     port = int(os.environ.get("PORT", 8000))
